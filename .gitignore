@@ -1,0 +1,12 @@
+# Environnement virtuel Python
+.venv/
+venv/
+__pycache__/
+
+# Fichiers de configuration et secrets
+.env
+credentials.json
+token.json
+
+# Base de données
+omnivigie.db
