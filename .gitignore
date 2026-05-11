@@ -10,3 +10,6 @@ token.json
 
 # Base de données
 omnivigie.db
+
+# Données brutes et raffinées
+data/
