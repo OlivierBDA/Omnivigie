@@ -2,6 +2,7 @@ import os
 import json
 import sqlite3
 import re
+from enum import Enum
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from typing import List
@@ -12,10 +13,18 @@ from google.genai import types
 DB_FILE = os.path.join('data', 'refined', 'newsletter.db')
 CONFIG_FILE = 'llm_config.json'
 CRITERIA_FILE = 'criteria.md'
+THEMES_FILE = 'themes.json'
+
+def load_themes():
+    with open(THEMES_FILE, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+themes_list = load_themes()
+ThemeEnum = Enum('ThemeEnum', {t: t for t in themes_list})
 
 class ArticleEvaluation(BaseModel):
     id: int
-    tags: List[str]
+    tags: List[ThemeEnum]
     is_interesting: bool
     explanation: str
 
@@ -34,6 +43,8 @@ def migrate_db():
         cursor.execute("ALTER TABLE tldr_ai ADD COLUMN is_interesting BOOLEAN")
     if 'explanation' not in columns:
         cursor.execute("ALTER TABLE tldr_ai ADD COLUMN explanation TEXT")
+    if 'is_processed' not in columns:
+        cursor.execute("ALTER TABLE tldr_ai ADD COLUMN is_processed BOOLEAN DEFAULT 0")
         
     conn.commit()
     conn.close()
@@ -54,7 +65,7 @@ def extract_minutes(time_str):
         return int(match.group(1))
     return None
 
-def main():
+def run():
     load_dotenv()
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
@@ -70,8 +81,8 @@ def main():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     
-    # Récupérer les articles non qualifiés
-    cursor.execute("SELECT id, title, summary, reading_time, is_sponsor FROM tldr_ai WHERE is_interesting IS NULL")
+    # Récupérer les articles non qualifiés (is_interesting IS NULL et is_processed = 0)
+    cursor.execute("SELECT id, title, summary, reading_time, is_sponsor FROM tldr_ai WHERE is_interesting IS NULL AND is_processed = 0")
     articles = cursor.fetchall()
     
     if not articles:
@@ -90,13 +101,13 @@ def main():
         minutes = extract_minutes(reading_time)
         
         if is_sponsor:
-            cursor.execute("UPDATE tldr_ai SET is_interesting=0, explanation=? WHERE id=?", 
+            cursor.execute("UPDATE tldr_ai SET is_interesting=0, explanation=?, is_processed=1 WHERE id=?", 
                            ("Filtré: Article sponsorisé.", art_id))
             hard_filtered_count += 1
             continue
             
         if minutes is None or minutes < 5:
-            cursor.execute("UPDATE tldr_ai SET is_interesting=0, explanation=? WHERE id=?", 
+            cursor.execute("UPDATE tldr_ai SET is_interesting=0, explanation=?, is_processed=1 WHERE id=?", 
                            (f"Filtré: Temps de lecture insuffisant ({reading_time}).", art_id))
             hard_filtered_count += 1
             continue
@@ -142,29 +153,33 @@ def main():
         interesting_count = 0
         for eval_item in evaluations:
             art_id = eval_item['id']
-            tags_str = ", ".join(eval_item['tags'])
+            # Les tags sont déjà des strings après le json.loads()
+            tags_str = ", ".join(eval_item.get('tags', []))
             is_int = 1 if eval_item['is_interesting'] else 0
             explanation = eval_item['explanation']
             
+            # Si l'article n'est pas intéressant, on le marque comme processed
+            is_processed = 1 if is_int == 0 else 0
+            
             cursor.execute("""
                 UPDATE tldr_ai 
-                SET tags=?, is_interesting=?, explanation=? 
+                SET tags=?, is_interesting=?, explanation=?, is_processed=? 
                 WHERE id=?
-            """, (tags_str, is_int, explanation, art_id))
+            """, (tags_str, is_int, explanation, is_processed, art_id))
             
             if is_int:
                 interesting_count += 1
                 
         conn.commit()
-        print(f"\n✅ Qualification terminée !")
+        print(f"\n[OK] Qualification terminée !")
         print(f" -> {interesting_count} articles jugés pertinents par l'IA.")
         print(f" -> {len(evaluations) - interesting_count} articles rejetés par l'IA.")
         
     except Exception as e:
-        print(f"❌ Erreur lors de l'appel à Gemini : {e}")
+        print(f"[ERREUR] Erreur lors de l'appel à Gemini : {e}")
         
     finally:
         conn.close()
 
 if __name__ == "__main__":
-    main()
+    run()

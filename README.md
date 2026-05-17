@@ -2,33 +2,41 @@
 
 Omnivigie est un assistant personnel automatisé conçu pour réaliser une **veille technologique sur mesure** (orientée Data & Intelligence Artificielle) avec un minimum d'effort manuel.
 
-Son objectif final est de collecter automatiquement des newsletters, d'en extraire les articles, d'évaluer leur pertinence selon des critères personnalisés via une IA, et d'injecter les meilleurs contenus dans **Google NotebookLM** afin de générer un podcast de synthèse.
+Son objectif final est de collecter automatiquement des newsletters, d'en extraire les articles, d'évaluer leur pertinence selon des critères stricts via une IA (Gemini), de les regrouper par thèmes de manière interactive, et d'injecter les meilleurs contenus dans **Google NotebookLM** afin de générer un podcast analytique de synthèse (Deep Dive).
 
-## 🏗️ Architecture et État d'Avancement
+## 🏗️ Architecture et Pipeline
 
-Le projet est construit de manière modulaire. Plusieurs programmes ont été écrits itérativement pour valider chaque brique technique.
+Le projet a été refondu dans une architecture modulaire et robuste. La suite logicielle s'exécute de manière unitaire ou via un orchestrateur global.
 
-### La Pipeline Actuelle
+### La Pipeline (via `orchestrator.py`)
 
-1. **Collecte des Newsletters (`06_test_gmail_api.py`)** : 
+0. **Authentification (`auto_login_notebooklm`)** : L'orchestrateur lance une session `notebook login` en tâche de fond et valide la connexion automatiquement (récupération des cookies) pour éviter toute expiration de session.
+
+1. **Collecte des Newsletters (`fetch_newsletters.py`)** : 
    - Se connecte à la boîte de réception Gmail via l'API officielle Google (OAuth 2.0).
-   - Récupère les emails bruts de la newsletter ciblée (actuellement `TLDR AI`) et les sauvegarde au format HTML localement (`data/raw/`).
+   - Ne récupère que les nouveaux emails (filtre `after:timestamp` basé sur l'historique en base de données).
+   - Extrait le HTML et le sauvegarde localement (`data/raw/`).
+   - Maintient l'historique de téléchargement dans la table SQLite `email`.
 
-2. **Extraction et Structuration (`07_parse_tldr.py`)** :
-   - Parse le code HTML de la newsletter (avec `BeautifulSoup`).
-   - Sépare les différents articles, nettoie les liens de tracking, et sauvegarde les informations essentielles (titre, lien direct, temps de lecture, résumé) dans une base de données **SQLite** (`data/refined/newsletter.db`).
-   - Assure un dédoublonnage strict des URLs.
+2. **Extraction et Structuration (`parse_newsletters.py`)** :
+   - Parse le code HTML des nouvelles newsletters avec `BeautifulSoup`.
+   - Sépare les différents articles, nettoie les liens de tracking, et sauvegarde les informations essentielles (titre, lien direct, temps de lecture, résumé) dans la table SQLite `tldr_ai`.
+   - Déplace les fichiers HTML traités vers le dossier `processed/` pour éviter les doublons.
 
-3. **Qualification par l'IA (`08_qualify_articles.py`)** :
-   - Étape cruciale pour éviter l'infobésité.
-   - Applique d'abord un filtre métier : exclusion automatique des articles sponsorisés ou trop courts (< 5 minutes).
-   - Utilise ensuite le modèle **Google Gemini** (`gemini-3.1-flash-lite` via `google-genai`) en lui envoyant la liste des articles restants en un seul bloc (batch).
-   - L'IA évalue chaque article face aux critères d'intérêts de l'utilisateur et met à jour la base de données (`is_interesting`, `tags`, `explanation`).
+3. **Qualification par l'IA (`qualify_articles.py`)** :
+   - Applique un filtre métier : exclusion automatique des articles sponsorisés ou trop courts (< 5 minutes), marqués comme `is_processed=1`.
+   - Utilise le modèle **Google Gemini** (`gemini-3.1-flash-lite` via `google-genai`) en lui envoyant la liste des articles restants (batch).
+   - Contraint l'IA à qualifier l'article et à lui attribuer des tags obligatoirement piochés dans la liste de `themes.json`.
 
-### Briques Précédentes & Prochaines Étapes
-- Les scripts `01` à `04` ont servi de preuve de concept pour la manipulation de l'API communautaire `notebooklm-py` et de moteurs de recherche (`Tavily`).
-- Le script `05_orchestrateur.py` est l'ébauche de l'automatisation de bout en bout (basée initialement sur Tavily, en cours de remplacement par la logique Newsletter).
-- **Prochaine étape majeure** : Unifier le flux pour que les articles validés par le script `08` soient automatiquement injectés dans un nouveau carnet NotebookLM pour lancer la génération du podcast audio (Audio Overview).
+4. **Création Thématique (`create_themed_notebook.py`)** (Interactif) :
+   - Récupère l'ensemble des articles validés par l'IA et non encore traités (`is_processed=0`).
+   - Affiche un menu listant l'intégralité des thèmes définis et le nombre d'articles en attente.
+   - Demande à l'utilisateur de sélectionner un thème à synthétiser.
+   - Crée le carnet NotebookLM (`[AI] YYYY-MM-DD TLDR-{Thème}`), y ajoute les URLs, et marque les articles concernés comme `is_processed=1`.
+
+5. **Génération du Podcast (`generate_podcast.py`)** :
+   - Lance la génération d'un fichier audio (format long / deep-dive analytique) ciblé pour des architectes et ingénieurs.
+   - Se greffe directement sur le carnet NotebookLM sélectionné.
 
 ## ⚙️ Configuration & Installation
 
@@ -36,9 +44,18 @@ Le projet nécessite un environnement Python et plusieurs fichiers de configurat
 
 1. **Dépendances** : `pip install -r requirements.txt`
 2. **`.env`** : Contient votre clé d'API Google Gemini (`GEMINI_API_KEY`). Voir `.env.example`.
-3. **`credentials.json`** : Clé OAuth 2.0 Client ID téléchargée depuis Google Cloud Console pour l'API Gmail.
-4. **`criteria.md`** : Vos critères d'intérêts en langage naturel (Thèmes pertinents et thèmes à exclure), utilisés par le LLM pour le tri.
-5. **`llm_config.json`** : Configuration technique du LLM (nom du modèle, température).
+3. **`credentials.json`** : Clé OAuth 2.0 Client ID téléchargée depuis Google Cloud Console pour l'API Gmail. Le token d'accès généré sera stocké dans `token.json`.
+4. **`themes.json`** : La liste exclusive des thèmes autorisés pour l'IA et pour la création des carnets (Ex: "Agents Autonomes & Agentic").
+5. **`criteria.md`** : Vos critères d'intérêts en langage naturel, utilisés par le LLM pour exclure ou valider la pertinence technique.
+6. **`llm_config.json`** : Configuration technique du LLM (nom du modèle, température).
+
+## 🚀 Utilisation Courante
+
+Lancez simplement le programme maître. Il s'occupera du téléchargement, du tri intelligent, et vous demandera quel thème vous souhaitez écouter aujourd'hui :
+
+```bash
+python .\orchestrator.py
+```
 
 ---
 *Que la sagesse de l'Omnimessie guide cette veille technologique.*
