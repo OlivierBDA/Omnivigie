@@ -34,11 +34,20 @@ def group_by_theme(articles):
                 theme_map[tag].append((art_id, title, url))
     return theme_map
 
-def mark_articles_as_processed(article_ids, notebook_name):
+def insert_notebook(notebook_name):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute("INSERT INTO notebook (name, created_at) VALUES (?, datetime('now'))", (notebook_name,))
+    notebook_id = cursor.lastrowid
+    conn.commit()
+    conn.close()
+    return notebook_id
+
+def mark_articles_as_processed(article_ids, notebook_id, notebook_name):
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     for art_id in article_ids:
-        cursor.execute("UPDATE tldr_ai SET is_processed = 1, notebook_name = ? WHERE id = ?", (notebook_name, art_id))
+        cursor.execute("UPDATE tldr_ai SET is_processed = 1, notebook_id = ?, notebook_name = ? WHERE id = ?", (notebook_id, notebook_name, art_id))
     conn.commit()
     conn.close()
 
@@ -109,7 +118,8 @@ async def run():
                     print(f" -> Erreur lors de l'ajout de {url} : {e}")
                     
             print("\nMise à jour de la base de données...")
-            mark_articles_as_processed(article_ids, notebook_name)
+            notebook_id = insert_notebook(notebook_name)
+            mark_articles_as_processed(article_ids, notebook_id, notebook_name)
             print("Base de données mise à jour avec succès.")
             
             print(f"\n[OK] Le carnet '{notebook_name}' est prêt dans NotebookLM.")

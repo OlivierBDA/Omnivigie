@@ -6,6 +6,9 @@ import fetch_newsletters
 import parse_newsletters
 import qualify_articles
 import create_themed_notebook
+import generate_mindmap
+import json_to_graph
+import neo4j_ingestion
 import generate_podcast
 
 import sys
@@ -75,8 +78,27 @@ async def main():
             print("\nAucun carnet créé. Fin du programme.")
             return
             
-        # 5. Generate Podcast
-        print_banner("ÉTAPE 5 : GÉNÉRATION DU PODCAST")
+        # 5. Generate Mindmap
+        print_banner("ÉTAPE 5 : GÉNÉRATION ET RÉCUPÉRATION MINDMAP")
+        print("Lancement de la requête de création de Mindmap...")
+        json_path = await generate_mindmap.run(notebook_name)
+        
+        if json_path:
+            # 6. JSON to Graph (LLM)
+            print_banner("ÉTAPE 6 : TRANSFORMATION SÉMANTIQUE JSON -> GRAPH")
+            json_to_graph.run(json_path)
+            
+            # Le script json_to_graph.py génère un fichier avec le suffixe _graph_extracted.json
+            graph_json_path = json_path.replace(".json", "_graph_extracted.json")
+            
+            # 7. Ingestion Neo4j
+            print_banner("ÉTAPE 7 : INGESTION DANS NEO4J")
+            neo4j_ingestion.ingest_graph(graph_json_path)
+        else:
+            print("\n[AVERTISSEMENT] Mindmap non récupérée. Les étapes Graph (6 et 7) sont ignorées.")
+            
+        # 8. Generate Podcast
+        print_banner("ÉTAPE 8 : GÉNÉRATION DU PODCAST")
         confirm = input(f"Voulez-vous lancer la génération du podcast long pour le carnet '{notebook_name}' ? (y/n) : ")
         if confirm.lower() == 'y':
             await generate_podcast.run(notebook_name)

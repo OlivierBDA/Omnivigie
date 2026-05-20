@@ -4,6 +4,7 @@ import sqlite3
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from google.auth.transport.requests import Request
+from google.auth.exceptions import RefreshError
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -57,16 +58,32 @@ def is_email_already_fetched(msg_id):
 
 def authenticate_gmail():
     creds = None
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    token_path = 'token.json'
+    
+    if os.path.exists(token_path):
+        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
+        
     if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+        try:
+            if creds and creds.expired and creds.refresh_token:
+                creds.refresh(Request())
+            else:
+                flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+                creds = flow.run_local_server(port=0)
+                
+            with open(token_path, 'w') as token:
+                token.write(creds.to_json())
+        except RefreshError:
+            print("[AVERTISSEMENT] Le token Gmail est expiré ou révoqué. Reconnexion requise...")
+            if os.path.exists(token_path):
+                os.remove(token_path)
+            
+            # Reprise avec un nouveau processus d'authentification vierge
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
-        with open('token.json', 'w') as token:
-            token.write(creds.to_json())
+            with open(token_path, 'w') as token:
+                token.write(creds.to_json())
+                
     return build('gmail', 'v1', credentials=creds)
 
 def get_header(headers, name):

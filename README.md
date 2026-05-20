@@ -34,9 +34,23 @@ Le projet a été refondu dans une architecture modulaire et robuste. La suite l
    - Demande à l'utilisateur de sélectionner un thème à synthétiser.
    - Crée le carnet NotebookLM (`[AI] YYYY-MM-DD TLDR-{Thème}`), y ajoute les URLs, et marque les articles concernés comme `is_processed=1`.
 
-5. **Génération du Podcast (`generate_podcast.py`)** :
+5. **Génération du Mindmap (`generate_mindmap.py`)** :
+   - Requête l'API de NotebookLM pour générer une carte mentale (Mindmap) de l'ensemble du carnet.
+   - Patiente (polling) jusqu'à sa disponibilité et la télécharge au format JSON.
+
+6. **Transformation Sémantique JSON -> Graph (`json_to_graph.py`)** :
+   - Analyse la Mindmap JSON avec l'IA (Gemini).
+   - Convertit les informations non structurées en un formalisme Graphe stricte (Noeuds et Relations) en suivant l'ontologie métier (`graphModel.txt`).
+   - Propose de nouveaux concepts (auto-apprentissage du modèle).
+
+7. **Ingestion dans la base Neo4j (`neo4j_ingestion.py`)** :
+   - Se connecte à la base de données orientée graphe Neo4j locale.
+   - Intègre les nœuds et relations (MERGE) issus de la Mindmap.
+   - Insère les nouveaux concepts identifiés par l'IA directement dans le schéma de référence (`graphModel.txt`) pour enrichir les itérations futures.
+
+8. **Génération du Podcast (`generate_podcast.py`)** :
    - Lance la génération d'un fichier audio (format long / deep-dive analytique) ciblé pour des architectes et ingénieurs.
-   - Se greffe directement sur le carnet NotebookLM sélectionné.
+   - L'action est asynchrone ("fire and forget"), le programme s'arrête ensuite.
 
 ## ⚙️ Configuration & Installation
 
@@ -48,6 +62,7 @@ Le projet nécessite un environnement Python et plusieurs fichiers de configurat
 4. **`themes.json`** : La liste exclusive des thèmes autorisés pour l'IA et pour la création des carnets (Ex: "Agents Autonomes & Agentic").
 5. **`criteria.md`** : Vos critères d'intérêts en langage naturel, utilisés par le LLM pour exclure ou valider la pertinence technique.
 6. **`llm_config.json`** : Configuration technique du LLM (nom du modèle, température).
+7. **`graphModel.txt`** : Ontologie / Schéma dynamique du graphe de connaissance Neo4j. Le LLM lit et modifie ce fichier de manière autonome.
 
 ## 🚀 Utilisation Courante
 

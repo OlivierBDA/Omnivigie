@@ -1,0 +1,85 @@
+// ============================================================================
+// MODÈLE DE DONNÉES GRAPH OMNIVIGIE (NEO4J)
+// Ce fichier sert de référence pour comprendre le schéma du graphe de connaissances.
+// ============================================================================
+
+// ----------------------------------------------------------------------------
+// 1. DÉFINITION DES NŒUDS (LABELS)
+// ----------------------------------------------------------------------------
+
+// (Document) - Nœud de Provenance (Data Lineage) : Stocke la source de l'information.
+// C'est le point d'ancrage de votre flux Omnivigie (ex: vos exports JSON).
+// - id (String) : Clé Primaire (ex: "NB-3")
+// - title (String) : Titre lisible du document (ex: "[AI] 2026-05-16 TLDR-Agents")
+// - publish_date (Date) : Date d'émission de la newsletter ou du rapport
+
+// (Organization) - Représente une structure morale majeure de l'écosystème.
+// - name (String) : Clé Primaire : Nom unique nettoyé (ex: "Anthropic", "Google")
+// - type (String) : Sous-catégorisation (ex: "Entreprise", "Laboratoire")
+
+// (Model) - Représente un modèle d'intelligence artificielle ou un produit technique précis.
+// - name (String) : Clé Primaire : Nom propre du modèle (ex: "Gemini 1.5 Flash")
+// - version (String) : Version mineure ou déclinaison (ex: "v1", "Pro")
+
+// (Person) - Représente un individu influent (chercheur, CEO, fondateur) cité dans la veille.
+// - name (String) : Clé Primaire : Prénom et Nom de la personne (ex: "Yann LeCun")
+// - role (String) : Rôle principal constaté (ex: "Chercheur en Chef", "CEO")
+
+// (Concept) - Les briques technologiques, concepts abstraits ou métriques du domaine.
+// - name (String) : Clé Primaire : Le concept technique (ex: "JEPA", "GraphRAG")
+// - domain (String) : Domaine d'application (ex: "Computer Vision", "Agentic Framework")
+
+// (GeopoliticalEntity) - Entité politique ou géographique.
+// - name (String) : Clé Primaire : Nom du pays ou de la région (ex: "USA", "Chine")
+
+// ----------------------------------------------------------------------------
+// 2. DÉFINITION DES RELATIONS
+// ----------------------------------------------------------------------------
+
+// (Organization)-[:DEVELOPS]->(Model)
+// Lien de création industrielle : Une entreprise développe un modèle.
+// Propriété optionnelle : market_share (String)
+
+// (Organization)-[:INVESTS_IN]->(Organization)
+// Lien financier ou stratégique : Fusion, acquisition ou investissement lourd.
+
+// (Organization)-[:BASED_IN]->(GeopoliticalEntity)
+// Lien d'ancrage territorial.
+
+// (Person)-[:AFFILIATED_WITH]->(Organization)
+// Lien d'emploi ou de gouvernance.
+
+// (Person)-[:CONTRIBUTES_TO]->(Concept)
+// Lien de paternité scientifique.
+
+// (Person)-[:CRITICIZES]->(Concept)
+// Lien de débat/critique scientifique.
+
+// (Model)-[:IMPLEMENTS]->(Concept)
+// Lien d'implémentation : Un modèle intègre concrètement un concept.
+
+// (Model)-[:COMPETES_WITH]->(Model)
+// Lien de concurrence directe sur le marché entre deux modèles d'IA.
+
+// (Concept)-[:SUB_CONCEPT_OF]->(Concept)
+// Lien de taxonomie réflexif (arborescence des sous-concepts).
+
+// ----------------------------------------------------------------------------
+// 3. LA COUCHE DE TRAÇABILITÉ (PROVENANCE)
+// ----------------------------------------------------------------------------
+
+// (*)-[:MENTIONED_IN]->(Document)
+// Cette relation universelle lie n'importe quel nœud métier au document qui l'a cité.
+// Elle permet de filtrer le graphe par source ou par période temporelle.
+
+// ============================================================================
+// DÉFINITIONS DYNAMIQUES (AJOUTÉES AUTOMATIQUEMENT LORS DE L'INGESTION)
+// ============================================================================
+
+// (Hardware) - [DYNAMIQUE] Nouveau concept métier identifié par le LLM.
+// - name (String) : Clé Primaire
+// - type (String) : Propriété ajoutée dynamiquement
+
+// (Software) - [DYNAMIQUE] Nouveau concept métier identifié par le LLM.
+// - name (String) : Clé Primaire
+// - category (String) : Propriété ajoutée dynamiquement
