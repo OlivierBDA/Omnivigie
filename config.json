@@ -1,8 +1,0 @@
-[
-    {
-        "id": "ai_veille",
-        "name": "Intelligence Artificielle",
-        "query": "Nouvelles informations sur l'intelligence artificielle. Articles de blog, solutions éditeurs, papiers de recherches, vidéos Youtube, posts de réseaux sociaux. Exclure tout ce qui concerne la robotique et les robots physiques.",
-        "counter": 2
-    }
-]
