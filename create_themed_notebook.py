@@ -98,6 +98,9 @@ async def run():
         print("Annulation.")
         return None
         
+    return await create_notebook_from_articles(selected_theme, selected_articles)
+
+async def create_notebook_from_articles(selected_theme, selected_articles):
     current_time = datetime.now().strftime('%Y-%m-%d')
     notebook_name = f"[AI] {current_time} TLDR-{selected_theme}"
     
