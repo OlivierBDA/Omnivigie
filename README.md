@@ -1,5 +1,7 @@
 # Omnivigie (L'Assistant Veille "Omnimessie")
 
+![Omnivigie Streamlit Interface](doc/Omnivigie_streamlit_home.png)
+
 Omnivigie est un assistant personnel automatisé conçu pour réaliser une **veille technologique sur mesure** (orientée Data & Intelligence Artificielle) avec un minimum d'effort manuel.
 
 Son objectif final est de collecter automatiquement des newsletters, d'en extraire les articles, d'évaluer leur pertinence selon des critères stricts via une IA (Gemini), de les regrouper par thèmes de manière interactive, et d'injecter les meilleurs contenus dans **Google NotebookLM** afin de générer un podcast analytique de synthèse (Deep Dive).
@@ -52,11 +54,21 @@ Le projet a été refondu dans une architecture modulaire et robuste. La suite l
    - Lance la génération d'un fichier audio (format long / deep-dive analytique) ciblé pour des architectes et ingénieurs.
    - L'action est asynchrone ("fire and forget"), le programme s'arrête ensuite.
 
+## 💻 Interface Web Streamlit
+
+En complément de l'interface en ligne de commande, Omnivigie dispose d'une magnifique interface web interactive développée en **Streamlit** (avec un thème sombre cosmique haut de gamme).
+
+### Fonctionnalités principales :
+- **Tableau de Bord de Diagnostic** : Détecte en direct au démarrage le statut de votre cookie NotebookLM (Playwright) et de votre base de données locale Neo4j Desktop. Si le cookie a expiré ou que la base est inactive, des indicateurs visuels clairs vous avertissent et vous permettent d'interagir directement (authentification assistée par navigateur automatisé et bouton de rafraîchissement d'état).
+- **Console Interactive d'Acquisition** : Lancez la pipeline complète d'un simple clic et suivez son avancement grâce aux logs de console redirigés en direct. Les résultats détaillés (nombre d'emails téléchargés, articles lus, qualifiés intéressants) restent visibles de manière persistante après l'exécution.
+- **Curation Thématique & Filtrage Visuel** : Choisissez un thème de veille parmi vos configurations et **sélectionnez/désélectionnez précisément** les articles à insérer dans votre carnet NotebookLM à l'aide de checkboxes dynamiques avant de lancer la création.
+- **Gestion Directe de la Configuration** : Modifiez instantanément vos critères de sélection de veille (`criteria.md`) ou votre liste de thèmes (`themes.json`) directement depuis l'éditeur intégré dans l'interface graphique.
+
 ## ⚙️ Configuration & Installation
 
 Le projet nécessite un environnement Python et plusieurs fichiers de configuration non versionnés pour des raisons de sécurité :
 
-1. **Dépendances** : `pip install -r requirements.txt`
+1. **Dépendances** : `pip install -r requirements.txt` (inclut désormais `streamlit`)
 2. **`.env`** : Contient votre clé d'API Google Gemini (`GEMINI_API_KEY`). Voir `.env.example`.
 3. **`credentials.json`** : Clé OAuth 2.0 Client ID téléchargée depuis Google Cloud Console pour l'API Gmail. Le token d'accès généré sera stocké dans `token.json`.
 4. **`themes.json`** : La liste exclusive des thèmes autorisés pour l'IA et pour la création des carnets (Ex: "Agents Autonomes & Agentic").
@@ -66,11 +78,18 @@ Le projet nécessite un environnement Python et plusieurs fichiers de configurat
 
 ## 🚀 Utilisation Courante
 
-Lancez simplement le programme maître. Il s'occupera du téléchargement, du tri intelligent, et vous demandera quel thème vous souhaitez écouter aujourd'hui :
+### Option A : Interface Web Streamlit (Recommandé)
+Pour une utilisation moderne et visuelle, lancez le serveur Streamlit local :
+```bash
+streamlit run app.py
+```
 
+### Option B : Ligne de Commande (CLI)
+Pour exécuter l'ancien workflow interactif pas à pas dans votre terminal :
 ```bash
 python .\orchestrator.py
 ```
 
 ---
 *Que la sagesse de l'Omnimessie guide cette veille technologique.*
+
